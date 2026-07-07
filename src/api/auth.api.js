@@ -19,3 +19,8 @@ export const changePassword = async (passwordData) => {
   const response = await api.put('/api/auth/change-password', passwordData);
   return response.data;
 };
+
+export const getStaff = async () => {
+  const response = await api.get('/api/auth/staff');
+  return response.data;
+};

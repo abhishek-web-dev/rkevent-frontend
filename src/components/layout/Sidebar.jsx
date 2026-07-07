@@ -10,6 +10,7 @@ import {
   CalendarDays,
   Layers,
   Clock,
+  Activity,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import logoWhite from '../../assets/logo-white.png';
@@ -21,6 +22,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Customers', path: '/customers', icon: Users },
     { name: 'Bookings', path: '/bookings', icon: CalendarDays },
+    { name: 'Production Board', path: '/production', icon: Activity },
     { name: 'Invoices', path: '/invoices', icon: FileText },
     { name: 'Payments', path: '/payments', icon: CreditCard },
   ];

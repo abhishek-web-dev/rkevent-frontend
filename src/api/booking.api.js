@@ -26,3 +26,13 @@ export const deleteBooking = async (id) => {
   const response = await api.delete(`/api/bookings/${id}`);
   return response.data;
 };
+
+export const updateServiceWorkflow = async (bookingServiceId, workflowStatus) => {
+  const response = await api.patch(`/api/bookings/services/${bookingServiceId}/workflow`, { workflowStatus });
+  return response.data;
+};
+
+export const updateServiceData = async (bookingServiceId, serviceData) => {
+  const response = await api.put(`/api/bookings/services/${bookingServiceId}`, serviceData);
+  return response.data;
+};

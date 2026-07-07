@@ -22,6 +22,7 @@ import Services from '../pages/services/Services';
 import Templates from '../pages/templates/Templates';
 import BookingsList from '../pages/bookings/BookingsList';
 import BookingWizard from '../pages/bookings/BookingWizard';
+import ProductionBoard from '../pages/production/ProductionBoard';
 
 const AppRoutes = () => {
   return (
@@ -38,6 +39,7 @@ const AppRoutes = () => {
           <Route path="/customers/trash" element={<CustomerTrash />} />
           <Route path="/bookings" element={<BookingsList />} />
           <Route path="/bookings/new" element={<BookingWizard />} />
+          <Route path="/production" element={<ProductionBoard />} />
           <Route path="/invoices" element={<Invoices />} />
           <Route path="/invoices/create" element={<CreateInvoice />} />
           <Route path="/invoices/details/:id" element={<InvoiceDetails />} />
