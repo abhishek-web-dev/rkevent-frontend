@@ -7,6 +7,9 @@ import {
   CreditCard,
   Settings,
   X,
+  CalendarDays,
+  Layers,
+  Clock,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import logoWhite from '../../assets/logo-white.png';
@@ -14,10 +17,22 @@ import logoWhite from '../../assets/logo-white.png';
 const Sidebar = ({ isOpen, toggleSidebar }) => {
   const { user } = useAuth();
 
-  const links = [
+  const baseLinks = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
+    { name: 'Customers', path: '/customers', icon: Users },
+    { name: 'Bookings', path: '/bookings', icon: CalendarDays },
     { name: 'Invoices', path: '/invoices', icon: FileText },
     { name: 'Payments', path: '/payments', icon: CreditCard },
+  ];
+
+  const adminLinks = user?.role === 'admin' ? [
+    { name: 'Services Master', path: '/services', icon: Layers },
+    { name: 'Timeline Templates', path: '/templates', icon: Clock },
+  ] : [];
+
+  const links = [
+    ...baseLinks,
+    ...adminLinks,
     { name: 'Settings', path: '/settings/company', icon: Settings },
   ];
 

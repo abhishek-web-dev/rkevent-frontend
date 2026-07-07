@@ -18,6 +18,10 @@ import Payments from '../pages/payments/Payments';
 import CompanySettings from '../pages/settings/CompanySettings';
 import Profile from '../pages/settings/Profile';
 import BackupManagement from '../pages/settings/BackupManagement';
+import Services from '../pages/services/Services';
+import Templates from '../pages/templates/Templates';
+import BookingsList from '../pages/bookings/BookingsList';
+import BookingWizard from '../pages/bookings/BookingWizard';
 
 const AppRoutes = () => {
   return (
@@ -32,11 +36,15 @@ const AppRoutes = () => {
           <Route path="/customers/add" element={<AddCustomer />} />
           <Route path="/customers/edit/:id" element={<EditCustomer />} />
           <Route path="/customers/trash" element={<CustomerTrash />} />
+          <Route path="/bookings" element={<BookingsList />} />
+          <Route path="/bookings/new" element={<BookingWizard />} />
           <Route path="/invoices" element={<Invoices />} />
           <Route path="/invoices/create" element={<CreateInvoice />} />
           <Route path="/invoices/details/:id" element={<InvoiceDetails />} />
           <Route path="/invoices/trash" element={<InvoiceTrash />} />
           <Route path="/payments" element={<Payments />} />
+          <Route path="/services" element={<Services />} />
+          <Route path="/templates" element={<Templates />} />
           <Route path="/settings" element={<Navigate to="/settings/company" replace />} />
           <Route path="/settings/company" element={<CompanySettings />} />
           <Route path="/settings/profile" element={<Profile />} />
