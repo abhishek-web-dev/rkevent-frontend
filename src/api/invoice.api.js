@@ -36,7 +36,7 @@ export const downloadInvoicePdf = async (id) => {
 };
 
 export const emailInvoice = async (id) => {
-  const response = await api.post(`/api/invoices/${id}/email`, null, {
+  const response = await api.post(`/api/invoices/${id}/email`, {}, {
     timeout: 120000, // 2 minutes (allows for Render cold start + generation)
   });
   return response.data;
