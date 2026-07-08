@@ -30,12 +30,15 @@ export const deleteInvoice = async (id) => {
 export const downloadInvoicePdf = async (id) => {
   const response = await api.get(`/api/invoices/${id}/pdf`, {
     responseType: 'blob',
+    timeout: 120000, // 2 minutes (allows for Render cold start + generation)
   });
   return response.data;
 };
 
 export const emailInvoice = async (id) => {
-  const response = await api.post(`/api/invoices/${id}/email`);
+  const response = await api.post(`/api/invoices/${id}/email`, null, {
+    timeout: 120000, // 2 minutes (allows for Render cold start + generation)
+  });
   return response.data;
 };
 
