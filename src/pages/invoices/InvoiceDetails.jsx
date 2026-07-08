@@ -299,6 +299,49 @@ const InvoiceDetails = () => {
             </div>
           </Card>
 
+          {/* Ceremonies Schedule / Timeline Card */}
+          {invoice.booking?.functions && invoice.booking.functions.length > 0 && (
+            <Card className="p-0 animate-in fade-in duration-200">
+              <div className="p-5 border-b border-white/5 flex items-center justify-between">
+                <h3 className="text-base font-bold text-white flex items-center space-x-2">
+                  <Calendar className="w-4.5 h-4.5 text-brand-light" />
+                  <span>Ceremonies Schedule</span>
+                </h3>
+                <Badge variant="glass">Total Functions: {invoice.booking.functions.length}</Badge>
+              </div>
+              <div className="p-5">
+                <Table>
+                  <THead>
+                    <TR>
+                      <TH>Ceremony</TH>
+                      <TH>Date</TH>
+                      <TH>Timings</TH>
+                      <TH>Venue / Location</TH>
+                    </TR>
+                  </THead>
+                  <TBody>
+                    {invoice.booking.functions.map((fn) => (
+                      <TR key={fn._id}>
+                        <TD className="font-semibold text-white">{fn.name}</TD>
+                        <TD className="text-slate-350 text-xs">
+                          {new Date(fn.date).toLocaleDateString('en-IN', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric'
+                          })}
+                        </TD>
+                        <TD className="text-slate-300 text-xs">
+                          {fn.startTime && fn.endTime ? `${fn.startTime} - ${fn.endTime}` : fn.startTime || 'TBD'}
+                        </TD>
+                        <TD className="text-slate-400 text-xs italic">{fn.venue || 'Event Venue'}</TD>
+                      </TR>
+                    ))}
+                  </TBody>
+                </Table>
+              </div>
+            </Card>
+          )}
+
           {/* Payment Ledger / History */}
           <Card className="p-0">
             <div className="p-5 border-b border-white/5 flex items-center justify-between">

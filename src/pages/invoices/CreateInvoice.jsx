@@ -32,6 +32,7 @@ const PRESET_SERVICES_LIST = [
   'Wedding Photography',
   'Pre Wedding Shoot',
   'Cinematic Video',
+  'Traditional Video',
   'Ring Ceremony Photography',
   'Birthday Photography',
   'Drone Shoot',
@@ -69,8 +70,17 @@ const bookingFormSchema = zod.object({
   eventDate: zod.string().min(1, 'Event date is required'),
   eventTime: zod.string().optional(),
   eventLocation: zod.string().min(1, 'Event location is required'),
-  expectedGuestCount: zod.coerce.number().min(0).default(0),
   specialRequirements: zod.string().optional(),
+
+  functions: zod.array(
+    zod.object({
+      name: zod.string().min(1, 'Ceremony name is required'),
+      date: zod.string().min(1, 'Date is required'),
+      startTime: zod.string().optional(),
+      endTime: zod.string().optional(),
+      venue: zod.string().optional()
+    })
+  ).optional().default([]),
   
   items: zod.array(
     zod.object({
@@ -79,6 +89,7 @@ const bookingFormSchema = zod.object({
       description: zod.string().optional(),
       quantity: zod.coerce.number().min(1, 'Quantity must be at least 1'),
       price: zod.coerce.number().min(0, 'Price must be positive'),
+      specs: zod.record(zod.any()).optional(),
     })
   ).min(1, 'Add at least one service row'),
   
@@ -158,8 +169,8 @@ const CreateInvoice = () => {
       eventDate: new Date().toISOString().substring(0, 10),
       eventTime: '18:00',
       eventLocation: '',
-      expectedGuestCount: 0,
       specialRequirements: '',
+      functions: [],
       
       items: [{ serviceName: '', category: '', description: '', quantity: 1, price: 0 }],
       discount: 0,
@@ -173,6 +184,11 @@ const CreateInvoice = () => {
     name: 'items',
   });
 
+  const { fields: functionFields, append: appendFunction, remove: removeFunction } = useFieldArray({
+    control,
+    name: 'functions',
+  });
+
   // Watch form fields
   const watchedSelectionType = watch('customerSelectionType');
   const watchedCustomerId = watch('customer');
@@ -181,6 +197,7 @@ const CreateInvoice = () => {
   const watchedTokenAmount = watch('tokenAmount') || 0;
   const watchedEventType = watch('eventType');
   const watchedCustomEventType = watch('customEventType');
+  const watchedFunctions = watch('functions') || [];
 
   // Photography event check to hide guest counts
   const shouldShowGuestCount = (type) => {
@@ -232,8 +249,8 @@ const CreateInvoice = () => {
         'eventDate',
         'eventTime',
         'eventLocation',
-        'expectedGuestCount',
         'specialRequirements',
+        'functions',
       ]);
     } else if (step === 3) {
       isValid = await trigger(['items']);
@@ -266,7 +283,6 @@ const CreateInvoice = () => {
 
   const onSubmit = (data) => {
     const finalEventType = data.eventType === 'Other' ? data.customEventType : data.eventType;
-    const finalGuestCount = shouldShowGuestCount(finalEventType) ? data.expectedGuestCount : 0;
 
     const apiPayload = {
       dueDate: data.eventDate, // defaults due date to event date
@@ -274,8 +290,9 @@ const CreateInvoice = () => {
       eventDate: data.eventDate,
       eventTime: data.eventTime,
       eventLocation: data.eventLocation,
-      expectedGuestCount: finalGuestCount,
+      expectedGuestCount: 0,
       specialRequirements: data.specialRequirements,
+      functions: data.functions || [],
       items: data.items.map(item => ({
         serviceName: item.serviceName,
         category: item.category || '',
@@ -575,17 +592,127 @@ const CreateInvoice = () => {
                 placeholder="In front of Punjab National Bank, Rajgarh, Jhansi"
                 error={errors.eventLocation?.message}
               />
-
-              {showGuestCount && (
-                <Input
-                  {...register('expectedGuestCount')}
-                  type="number"
-                  label="Expected Guest Count"
-                  placeholder="200"
-                  error={errors.expectedGuestCount?.message}
-                />
-              )}
             </div>
+
+            {watchedEventType === 'Wedding' && (
+              <div className="space-y-4 border-t border-white/5 pt-6 animate-in fade-in duration-300">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
+                      Wedding Timeline Ceremonies
+                    </label>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Toggle standard events to add dates & times slots.</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="glass"
+                    size="sm"
+                    onClick={() => appendFunction({ name: 'Custom Ceremony', date: watch('eventDate') || '', startTime: '10:00', endTime: '14:00', venue: watch('eventLocation') || '' })}
+                    className="rounded-xl flex items-center space-x-1"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Add Custom</span>
+                  </Button>
+                </div>
+
+                {/* Preset Quick Add Buttons */}
+                <div className="flex flex-wrap gap-1.5">
+                  {['Haldi', 'Mehndi', 'Baraat', 'Sangeet', 'Grah Pravesh', 'Reception'].map((name) => {
+                    const isAdded = watchedFunctions.some((f) => f.name === name);
+                    return (
+                      <button
+                        key={name}
+                        type="button"
+                        onClick={() => {
+                          if (isAdded) {
+                            const idx = watchedFunctions.findIndex((f) => f.name === name);
+                            if (idx !== -1) removeFunction(idx);
+                          } else {
+                            appendFunction({
+                              name,
+                              date: watch('eventDate') || '',
+                              startTime: '10:00',
+                              endTime: '14:00',
+                              venue: watch('eventLocation') || '',
+                            });
+                          }
+                        }}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                          isAdded
+                            ? 'bg-brand-light/10 border-brand-light text-brand-light'
+                            : 'bg-white/5 border-white/5 text-slate-400 hover:border-white/10 hover:text-slate-200'
+                        }`}
+                      >
+                        {name}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Functions rows rendering */}
+                {functionFields.length > 0 ? (
+                  <div className="space-y-4">
+                    {functionFields.map((fn, idx) => (
+                      <div
+                        key={fn.id}
+                        className="border border-white/5 rounded-2xl p-4 bg-white/[0.01] relative space-y-3 shadow-lg shadow-black/10 animate-in slide-in-from-top-1 duration-150"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => removeFunction(idx)}
+                          className="absolute top-3 right-3 text-slate-500 hover:text-rose-400 p-1 rounded-lg hover:bg-white/5"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+
+                        <div className="text-xs font-black text-brand-light uppercase tracking-wider flex items-center space-x-1">
+                          <span>Timeline Ceremony #{idx + 1}: {watch(`functions.${idx}.name`)}</span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <Input
+                            {...register(`functions.${idx}.name`)}
+                            label="Ceremony Name"
+                            error={errors.functions?.[idx]?.name?.message}
+                          />
+                          <Input
+                            {...register(`functions.${idx}.date`)}
+                            type="date"
+                            label="Date *"
+                            error={errors.functions?.[idx]?.date?.message}
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <Input
+                              {...register(`functions.${idx}.startTime`)}
+                              label="Start Time"
+                              placeholder="10:00"
+                              error={errors.functions?.[idx]?.startTime?.message}
+                            />
+                            <Input
+                              {...register(`functions.${idx}.endTime`)}
+                              label="End Time"
+                              placeholder="14:00"
+                              error={errors.functions?.[idx]?.endTime?.message}
+                            />
+                          </div>
+                        </div>
+
+                        <Input
+                          {...register(`functions.${idx}.venue`)}
+                          label="Venue Location"
+                          placeholder="e.g. Rajgarh Palace Hall"
+                          error={errors.functions?.[idx]?.venue?.message}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500 italic p-4 text-center bg-white/[0.01] rounded-2xl border border-white/5">
+                    No timeline ceremonies added yet. Click preset buttons above or Add Custom.
+                  </p>
+                )}
+              </div>
+            )}
 
             <div className="space-y-1.5 animate-in fade-in duration-200">
               <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider block">
@@ -631,45 +758,70 @@ const CreateInvoice = () => {
                     className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end p-4 rounded-2xl bg-white/[0.01] border border-white/5 animate-in fade-in duration-200"
                   >
                     {/* Service Name Input & Dropdown combo */}
-                    <div className="md:col-span-5 space-y-2">
-                      {index === 0 && (
-                        <label className="text-xs font-semibold text-slate-350 uppercase tracking-wider block">
-                          Service Name *
-                        </label>
-                      )}
-                      <div className="flex gap-2">
-                        <select
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (val === 'Other') {
-                              setValue(`items.${index}.serviceName`, '');
-                            } else {
-                              setValue(`items.${index}.serviceName`, val);
-                            }
-                          }}
-                          className="w-1/2 px-3 py-2 rounded-xl glass-input text-white text-xs outline-none focus:border-brand-light"
-                          defaultValue=""
-                        >
-                          <option value="" className="bg-slate-900">Preset list...</option>
-                          {PRESET_SERVICES_LIST.map((name) => (
-                            <option key={name} value={name} className="bg-slate-900">
-                              {name}
-                            </option>
-                          ))}
-                          <option value="Other" className="bg-slate-900">Other (Enter Custom)</option>
-                        </select>
-                        <input
-                          type="text"
-                          {...register(`items.${index}.serviceName`)}
-                          placeholder="Or enter custom name"
-                          className="w-1/2 px-3 py-2 rounded-xl glass-input text-white text-xs outline-none focus:border-brand-light"
-                        />
-                      </div>
-                      {errors.items?.[index]?.serviceName && (
-                        <span className="text-xs text-rose-450 font-medium block">
-                          {errors.items[index].serviceName.message}
-                        </span>
-                      )}
+                    <div className="md:col-span-5 space-y-2.5">
+                      {(() => {
+                        const serviceNameVal = watchedItems[index]?.serviceName || '';
+                        const isPreset = PRESET_SERVICES_LIST.includes(serviceNameVal);
+                        const selectValue = serviceNameVal === '' ? '' : (isPreset ? serviceNameVal : 'Other');
+
+                        return (
+                          <>
+                            <Select
+                              label={index === 0 ? 'Service Name *' : undefined}
+                              value={selectValue}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === 'Other') {
+                                  setValue(`items.${index}.serviceName`, '');
+                                } else {
+                                  setValue(`items.${index}.serviceName`, val);
+                                  if (val.toLowerCase().includes('wedding') || val.toLowerCase().includes('package')) {
+                                    setValue(`items.${index}.specs`, {
+                                      album: { selected: true, dimensions: '12x36', sheets: 20 },
+                                      video: { selected: true, duration: 2, penDriveOption: 'studio_supplied' },
+                                      cinematic: { selected: true, duration: 30, reelsCount: 3 },
+                                      drone: { selected: true, dronesCount: 1, hours: 4 }
+                                    });
+                                    setValue(`items.${index}.description`, 'Included: Album (Size: 12x36, Sheets: 20), Video (Duration: 2 Hrs, Pen Drive: We supply), Cinematic Film (Duration: 30 Mins, Reels: 3), Drone Shoot (1 Drone, 4 Hours)');
+                                    setValue(`items.${index}.price`, 75000);
+                                  } else if (val.toLowerCase().includes('album')) {
+                                    setValue(`items.${index}.specs`, { album: { selected: true, dimensions: '12x36', sheets: 20 } });
+                                    setValue(`items.${index}.description`, 'Included: Album (Size: 12x36, Sheets: 20)');
+                                    setValue(`items.${index}.price`, 15000);
+                                  } else if (val.toLowerCase().includes('traditional') || (val.toLowerCase().includes('video') && !val.toLowerCase().includes('cinematic'))) {
+                                    setValue(`items.${index}.specs`, { video: { selected: true, duration: 2, penDriveOption: 'studio_supplied' } });
+                                    setValue(`items.${index}.description`, 'Included: Video (Duration: 2 Hrs, Pen Drive: We supply)');
+                                    setValue(`items.${index}.price`, 20000);
+                                  } else if (val.toLowerCase().includes('cinematic')) {
+                                    setValue(`items.${index}.specs`, { cinematic: { selected: true, duration: 30, reelsCount: 3 } });
+                                    setValue(`items.${index}.description`, 'Included: Cinematic Film (Duration: 30 Mins, Reels: 3)');
+                                    setValue(`items.${index}.price`, 35000);
+                                  } else if (val.toLowerCase().includes('drone')) {
+                                    setValue(`items.${index}.specs`, { drone: { selected: true, dronesCount: 1, hours: 4 } });
+                                    setValue(`items.${index}.description`, 'Included: Drone Shoot (1 Drone, 4 Hours)');
+                                    setValue(`items.${index}.price`, 10000);
+                                  }
+                                }
+                              }}
+                              options={[
+                                { value: '', label: 'Preset list...' },
+                                ...PRESET_SERVICES_LIST.map((name) => ({ value: name, label: name })),
+                                { value: 'Other', label: 'Other (Enter Custom)' }
+                              ]}
+                              error={errors.items?.[index]?.serviceName ? true : undefined}
+                            />
+                            {selectValue === 'Other' && (
+                              <div className="animate-in slide-in-from-top-1 duration-150">
+                                <Input
+                                  {...register(`items.${index}.serviceName`)}
+                                  placeholder="Enter custom service name"
+                                  error={errors.items?.[index]?.serviceName?.message}
+                                />
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
 
                     {/* Quantity */}
@@ -705,7 +857,6 @@ const CreateInvoice = () => {
                         {formatCurrency(rowTotal)}
                       </span>
                     </div>
-
                     {/* Delete */}
                     <div className="md:col-span-1 flex justify-center pb-1">
                       {fields.length > 1 && (
@@ -719,6 +870,476 @@ const CreateInvoice = () => {
                         </Button>
                       )}
                     </div>
+
+                    {/* Specifications Sub-Form */}
+                    {(() => {
+                      const serviceName = watchedItems[index]?.serviceName || '';
+                      const isWedding = serviceName.toLowerCase().includes('wedding') || serviceName.toLowerCase().includes('package');
+                      
+                      const isSingleAlbum = !isWedding && serviceName.toLowerCase().includes('album');
+                      const isSingleVideo = !isWedding && (serviceName.toLowerCase().includes('traditional') || (serviceName.toLowerCase().includes('video') && !serviceName.toLowerCase().includes('cinematic')));
+                      const isSingleCinematic = !isWedding && serviceName.toLowerCase().includes('cinematic');
+                      const isSingleDrone = !isWedding && serviceName.toLowerCase().includes('drone');
+
+                      // Determine if specific deliverables are enabled
+                      const showAlbumFields = isSingleAlbum || (isWedding && watchedItems[index]?.specs?.album?.selected);
+                      const showVideoFields = isSingleVideo || (isWedding && watchedItems[index]?.specs?.video?.selected);
+                      const showCinematicFields = isSingleCinematic || (isWedding && watchedItems[index]?.specs?.cinematic?.selected);
+                      const showDroneFields = isSingleDrone || (isWedding && watchedItems[index]?.specs?.drone?.selected);
+
+                      if (!isWedding && !isSingleAlbum && !isSingleVideo && !isSingleCinematic && !isSingleDrone) return null;
+
+                      // Synchronize human-readable descriptions for invoice printing
+                      const syncDescription = (specsObj) => {
+                        let parts = [];
+                        if (isSingleAlbum || (specsObj.album && specsObj.album.selected)) {
+                          const alb = specsObj.album || specsObj;
+                          const dimsVal = alb.dimensions === 'custom' ? (alb.customDimensions || 'Custom') : (alb.dimensions || '12x36');
+                          parts.push(`Album (Size: ${dimsVal}, Sheets: ${alb.sheets || 20})`);
+                        }
+                        if (isSingleVideo || (specsObj.video && specsObj.video.selected)) {
+                          const vid = specsObj.video || specsObj;
+                          const driveStr = vid.penDriveOption === 'studio_supplied' ? 'We supply' : vid.penDriveOption === 'customer_supplied' ? 'Customer provides' : 'Digital only';
+                          parts.push(`Video (Duration: ${vid.duration || 2} Hrs, Pen Drive: ${driveStr})`);
+                        }
+                        if (isSingleCinematic || (specsObj.cinematic && specsObj.cinematic.selected)) {
+                          const cin = specsObj.cinematic || specsObj;
+                          parts.push(`Cinematic Film (Duration: ${cin.duration || 30} Mins, Reels: ${cin.reelsCount || 3})`);
+                        }
+                        if (isSingleDrone || (specsObj.drone && specsObj.drone.selected)) {
+                          const drn = specsObj.drone || specsObj;
+                          parts.push(`Drone Shoot (${drn.dronesCount || 1} Drone, ${drn.hours || 4} Hours)`);
+                        }
+                        // Sync custom deliverables
+                        if (specsObj.customDeliverables && specsObj.customDeliverables.length > 0) {
+                          specsObj.customDeliverables.forEach(c => {
+                            if (c.selected) {
+                              parts.push(`${c.name} (${c.notes || 'Included'})`);
+                            }
+                          });
+                        }
+                        const desc = parts.length > 0 ? `Included: ${parts.join(', ')}` : 'Wedding package coverage';
+                        setValue(`items.${index}.description`, desc);
+                      };
+
+                      return (
+                        <div className="md:col-span-12 space-y-4 p-4 mt-2 bg-white/[0.01] border border-white/5 rounded-2xl animate-in slide-in-from-top-1 duration-150">
+                          <div className="text-[10px] font-black text-brand-light uppercase tracking-wider flex items-center justify-between">
+                            <span>Configure {serviceName} Deliverables & Options</span>
+                          </div>
+
+                          {/* Render Checkboxes if it is a Wedding Package */}
+                          {isWedding && (
+                            <div className="bg-black/10 p-3 rounded-xl border border-white/5 space-y-2">
+                              <div className="flex justify-between items-center pb-1">
+                                <label className="text-[11px] font-bold text-slate-400 block uppercase tracking-wider">
+                                  Included Deliverables Checklist
+                                </label>
+                                <Button
+                                  type="button"
+                                  variant="glass"
+                                  size="sm"
+                                  onClick={() => {
+                                    const currentSpecs = watchedItems[index]?.specs || {};
+                                    const customList = currentSpecs.customDeliverables || [];
+                                    const updated = {
+                                      ...currentSpecs,
+                                      customDeliverables: [
+                                        ...customList,
+                                        { name: `Custom Service #${customList.length + 1}`, selected: true, notes: '' }
+                                      ]
+                                    };
+                                    setValue(`items.${index}.specs`, updated);
+                                    syncDescription(updated);
+                                  }}
+                                  className="rounded-xl py-1 px-2.5 text-[10px] h-auto flex items-center space-x-1 border border-white/10 hover:border-brand-light/30"
+                                >
+                                  <Plus className="w-3 h-3 text-brand-light" />
+                                  <span>Add service</span>
+                                </Button>
+                              </div>
+                              
+                              <div className="flex flex-wrap gap-4">
+                                <label className="flex items-center space-x-2 text-xs font-medium text-slate-200 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={watchedItems[index]?.specs?.album?.selected === true}
+                                    onChange={(e) => {
+                                      const currentSpecs = watchedItems[index]?.specs || {};
+                                      const updated = {
+                                        ...currentSpecs,
+                                        album: {
+                                          ...currentSpecs.album,
+                                          selected: e.target.checked,
+                                          dimensions: currentSpecs.album?.dimensions || '12x36',
+                                          sheets: currentSpecs.album?.sheets || 20
+                                        }
+                                      };
+                                      setValue(`items.${index}.specs`, updated);
+                                      syncDescription(updated);
+                                    }}
+                                    className="rounded bg-slate-900 border-white/10 text-brand-light focus:ring-0 w-4 h-4"
+                                  />
+                                  <span>Wedding Album</span>
+                                </label>
+
+                                <label className="flex items-center space-x-2 text-xs font-medium text-slate-200 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={watchedItems[index]?.specs?.video?.selected === true}
+                                    onChange={(e) => {
+                                      const currentSpecs = watchedItems[index]?.specs || {};
+                                      const updated = {
+                                        ...currentSpecs,
+                                        video: {
+                                          ...currentSpecs.video,
+                                          selected: e.target.checked,
+                                          duration: currentSpecs.video?.duration || 2,
+                                          penDriveOption: currentSpecs.video?.penDriveOption || 'studio_supplied'
+                                        }
+                                      };
+                                      setValue(`items.${index}.specs`, updated);
+                                      syncDescription(updated);
+                                    }}
+                                    className="rounded bg-slate-900 border-white/10 text-brand-light focus:ring-0 w-4 h-4"
+                                  />
+                                  <span>Traditional Video</span>
+                                </label>
+
+                                <label className="flex items-center space-x-2 text-xs font-medium text-slate-200 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={watchedItems[index]?.specs?.cinematic?.selected === true}
+                                    onChange={(e) => {
+                                      const currentSpecs = watchedItems[index]?.specs || {};
+                                      const updated = {
+                                        ...currentSpecs,
+                                        cinematic: {
+                                          ...currentSpecs.cinematic,
+                                          selected: e.target.checked,
+                                          duration: currentSpecs.cinematic?.duration || 30,
+                                          reelsCount: currentSpecs.cinematic?.reelsCount || 3
+                                        }
+                                      };
+                                      setValue(`items.${index}.specs`, updated);
+                                      syncDescription(updated);
+                                    }}
+                                    className="rounded bg-slate-900 border-white/10 text-brand-light focus:ring-0 w-4 h-4"
+                                  />
+                                  <span>Cinematic Film</span>
+                                </label>
+
+                                <label className="flex items-center space-x-2 text-xs font-medium text-slate-200 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={watchedItems[index]?.specs?.drone?.selected === true}
+                                    onChange={(e) => {
+                                      const currentSpecs = watchedItems[index]?.specs || {};
+                                      const updated = {
+                                        ...currentSpecs,
+                                        drone: {
+                                          ...currentSpecs.drone,
+                                          selected: e.target.checked,
+                                          dronesCount: currentSpecs.drone?.dronesCount || 1,
+                                          hours: currentSpecs.drone?.hours || 4
+                                        }
+                                      };
+                                      setValue(`items.${index}.specs`, updated);
+                                      syncDescription(updated);
+                                    }}
+                                    className="rounded bg-slate-900 border-white/10 text-brand-light focus:ring-0 w-4 h-4"
+                                  />
+                                  <span>Drone Service</span>
+                                </label>
+
+                                {/* Custom Deliverables checkboxes */}
+                                {(watchedItems[index]?.specs?.customDeliverables || []).map((cust, cIdx) => (
+                                  <label key={cIdx} className="flex items-center space-x-2 text-xs font-medium text-slate-200 cursor-pointer animate-in fade-in duration-200">
+                                    <input
+                                      type="checkbox"
+                                      checked={cust.selected === true}
+                                      onChange={(e) => {
+                                        const currentSpecs = watchedItems[index]?.specs || {};
+                                        const customList = [...(currentSpecs.customDeliverables || [])];
+                                        customList[cIdx] = { ...customList[cIdx], selected: e.target.checked };
+                                        const updated = { ...currentSpecs, customDeliverables: customList };
+                                        setValue(`items.${index}.specs`, updated);
+                                        syncDescription(updated);
+                                      }}
+                                      className="rounded bg-slate-900 border-white/10 text-brand-light focus:ring-0 w-4 h-4"
+                                    />
+                                    <span>{cust.name}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Specific sub-forms grid */}
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {/* Album Fields */}
+                            {showAlbumFields && (
+                              <div className="border border-white/5 p-4 rounded-xl bg-black/10 space-y-3 animate-in fade-in duration-200">
+                                <div className="text-[10px] font-bold text-slate-350 uppercase tracking-wide">
+                                  Album Details
+                                </div>
+                                <Select
+                                  label="Album Size"
+                                  value={(isSingleAlbum ? watchedItems[index]?.specs?.dimensions : watchedItems[index]?.specs?.album?.dimensions) || '12x36'}
+                                  onChange={(e) => {
+                                    const currentSpecs = watchedItems[index]?.specs || {};
+                                    const updated = isSingleAlbum
+                                      ? { ...currentSpecs, dimensions: e.target.value }
+                                      : {
+                                          ...currentSpecs,
+                                          album: { ...currentSpecs.album, dimensions: e.target.value }
+                                        };
+                                    setValue(`items.${index}.specs`, updated);
+                                    syncDescription(updated);
+                                  }}
+                                  options={[
+                                    { value: '12x36', label: '12x36 Premium' },
+                                    { value: '12x30', label: '12x30 Standard' },
+                                    { value: '30x40', label: '30x40 Large' },
+                                    { value: '15x20', label: '15x20 Portrait' },
+                                    { value: 'custom', label: 'Other / Custom Size' }
+                                  ]}
+                                />
+                                {((isSingleAlbum ? watchedItems[index]?.specs?.dimensions : watchedItems[index]?.specs?.album?.dimensions) === 'custom') && (
+                                  <div className="animate-in slide-in-from-top-1 duration-150">
+                                    <Input
+                                      label="Custom Album Size"
+                                      placeholder="e.g. 10x15, 12x36 Custom"
+                                      value={(isSingleAlbum ? watchedItems[index]?.specs?.customDimensions : watchedItems[index]?.specs?.album?.customDimensions) || ''}
+                                      onChange={(e) => {
+                                        const currentSpecs = watchedItems[index]?.specs || {};
+                                        const updated = isSingleAlbum
+                                          ? { ...currentSpecs, customDimensions: e.target.value }
+                                          : {
+                                              ...currentSpecs,
+                                              album: { ...currentSpecs.album, customDimensions: e.target.value }
+                                            };
+                                        setValue(`items.${index}.specs`, updated);
+                                        syncDescription(updated);
+                                      }}
+                                    />
+                                  </div>
+                                )}
+                                <Input
+                                  label="Number of Sheets"
+                                  type="number"
+                                  value={(isSingleAlbum ? watchedItems[index]?.specs?.sheets : watchedItems[index]?.specs?.album?.sheets) ?? ''}
+                                  onChange={(e) => {
+                                    const raw = e.target.value;
+                                    const val = raw === '' ? '' : (parseInt(raw) ?? 0);
+                                    const currentSpecs = watchedItems[index]?.specs || {};
+                                    const updated = isSingleAlbum
+                                      ? { ...currentSpecs, sheets: val }
+                                      : {
+                                          ...currentSpecs,
+                                          album: { ...currentSpecs.album, sheets: val }
+                                        };
+                                    setValue(`items.${index}.specs`, updated);
+                                    syncDescription(updated);
+                                  }}
+                                />
+                              </div>
+                            )}
+
+                            {/* Traditional Video Fields */}
+                            {showVideoFields && (
+                              <div className="border border-white/5 p-4 rounded-xl bg-black/10 space-y-3 animate-in fade-in duration-200">
+                                <div className="text-[10px] font-bold text-slate-350 uppercase tracking-wide">
+                                  Traditional Video Details
+                                </div>
+                                <Input
+                                  label="Video Duration (Hours)"
+                                  type="number"
+                                  value={(isSingleVideo ? watchedItems[index]?.specs?.duration : watchedItems[index]?.specs?.video?.duration) ?? ''}
+                                  onChange={(e) => {
+                                    const raw = e.target.value;
+                                    const val = raw === '' ? '' : (parseFloat(raw) ?? 0);
+                                    const currentSpecs = watchedItems[index]?.specs || {};
+                                    const updated = isSingleVideo
+                                      ? { ...currentSpecs, duration: val }
+                                      : {
+                                          ...currentSpecs,
+                                          video: { ...currentSpecs.video, duration: val }
+                                        };
+                                    setValue(`items.${index}.specs`, updated);
+                                    syncDescription(updated);
+                                  }}
+                                />
+                                <Select
+                                  label="Pen Drive Source"
+                                  value={(isSingleVideo ? watchedItems[index]?.specs?.penDriveOption : watchedItems[index]?.specs?.video?.penDriveOption) || 'studio_supplied'}
+                                  onChange={(e) => {
+                                    const currentSpecs = watchedItems[index]?.specs || {};
+                                    const updated = isSingleVideo
+                                      ? { ...currentSpecs, penDriveOption: e.target.value }
+                                      : {
+                                          ...currentSpecs,
+                                          video: { ...currentSpecs.video, penDriveOption: e.target.value }
+                                        };
+                                    setValue(`items.${index}.specs`, updated);
+                                    syncDescription(updated);
+                                  }}
+                                  options={[
+                                    { value: 'studio_supplied', label: 'Studio Supplies Pen Drive' },
+                                    { value: 'customer_supplied', label: 'Customer Provides Pen Drive' },
+                                    { value: 'digital_only', label: 'Digital Delivery Only' }
+                                  ]}
+                                />
+                              </div>
+                            )}
+
+                            {/* Cinematic Fields */}
+                            {showCinematicFields && (
+                              <div className="border border-white/5 p-4 rounded-xl bg-black/10 space-y-3 animate-in fade-in duration-200">
+                                <div className="text-[10px] font-bold text-slate-350 uppercase tracking-wide">
+                                  Cinematic Details
+                                </div>
+                                <Input
+                                  label="Cinematic Duration (Mins)"
+                                  type="number"
+                                  value={(isSingleCinematic ? watchedItems[index]?.specs?.duration : watchedItems[index]?.specs?.cinematic?.duration) ?? ''}
+                                  onChange={(e) => {
+                                    const raw = e.target.value;
+                                    const val = raw === '' ? '' : (parseInt(raw) ?? 0);
+                                    const currentSpecs = watchedItems[index]?.specs || {};
+                                    const updated = isSingleCinematic
+                                      ? { ...currentSpecs, duration: val }
+                                      : {
+                                          ...currentSpecs,
+                                          cinematic: { ...currentSpecs.cinematic, duration: val }
+                                        };
+                                    setValue(`items.${index}.specs`, updated);
+                                    syncDescription(updated);
+                                  }}
+                                />
+                                <Input
+                                  label="IG Reels Included"
+                                  type="number"
+                                  value={(isSingleCinematic ? watchedItems[index]?.specs?.reelsCount : watchedItems[index]?.specs?.cinematic?.reelsCount) ?? ''}
+                                  onChange={(e) => {
+                                    const raw = e.target.value;
+                                    const val = raw === '' ? '' : (parseInt(raw) ?? 0);
+                                    const currentSpecs = watchedItems[index]?.specs || {};
+                                    const updated = isSingleCinematic
+                                      ? { ...currentSpecs, reelsCount: val }
+                                      : {
+                                          ...currentSpecs,
+                                          cinematic: { ...currentSpecs.cinematic, reelsCount: val }
+                                        };
+                                    setValue(`items.${index}.specs`, updated);
+                                    syncDescription(updated);
+                                  }}
+                                />
+                              </div>
+                            )}
+
+                            {/* Drone Fields */}
+                            {showDroneFields && (
+                              <div className="border border-white/5 p-4 rounded-xl bg-black/10 space-y-3 animate-in fade-in duration-200">
+                                <div className="text-[10px] font-bold text-slate-350 uppercase tracking-wide">
+                                  Drone Shoot Details
+                                </div>
+                                <Input
+                                  label="Number of Drones"
+                                  type="number"
+                                  value={(isSingleDrone ? watchedItems[index]?.specs?.dronesCount : watchedItems[index]?.specs?.drone?.dronesCount) ?? ''}
+                                  onChange={(e) => {
+                                    const raw = e.target.value;
+                                    const val = raw === '' ? '' : (parseInt(raw) ?? 1);
+                                    const currentSpecs = watchedItems[index]?.specs || {};
+                                    const updated = isSingleDrone
+                                      ? { ...currentSpecs, dronesCount: val }
+                                      : {
+                                          ...currentSpecs,
+                                          drone: { ...currentSpecs.drone, dronesCount: val }
+                                        };
+                                    setValue(`items.${index}.specs`, updated);
+                                    syncDescription(updated);
+                                  }}
+                                />
+                                <Input
+                                  label="Coverage Hours"
+                                  type="number"
+                                  value={(isSingleDrone ? watchedItems[index]?.specs?.hours : watchedItems[index]?.specs?.drone?.hours) ?? ''}
+                                  onChange={(e) => {
+                                    const raw = e.target.value;
+                                    const val = raw === '' ? '' : (parseInt(raw) ?? 4);
+                                    const currentSpecs = watchedItems[index]?.specs || {};
+                                    const updated = isSingleDrone
+                                      ? { ...currentSpecs, hours: val }
+                                      : {
+                                          ...currentSpecs,
+                                          drone: { ...currentSpecs.drone, hours: val }
+                                        };
+                                    setValue(`items.${index}.specs`, updated);
+                                    syncDescription(updated);
+                                  }}
+                                />
+                              </div>
+                            )}
+
+                            {/* Custom Deliverables Fields */}
+                            {(watchedItems[index]?.specs?.customDeliverables || []).map((cust, cIdx) => {
+                              if (!cust.selected) return null;
+                              return (
+                                <div key={cIdx} className="border border-white/5 p-4 rounded-xl bg-black/10 space-y-3 animate-in fade-in duration-200 relative">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const currentSpecs = watchedItems[index]?.specs || {};
+                                      const customList = (currentSpecs.customDeliverables || []).filter((_, i) => i !== cIdx);
+                                      const updated = { ...currentSpecs, customDeliverables: customList };
+                                      setValue(`items.${index}.specs`, updated);
+                                      syncDescription(updated);
+                                    }}
+                                    className="absolute top-2 right-2 text-slate-500 hover:text-rose-450 p-1 rounded hover:bg-white/5"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+
+                                  <div className="text-[10px] font-bold text-slate-350 uppercase tracking-wide">
+                                    Custom Service Details
+                                  </div>
+
+                                  <Input
+                                    label="Service Name"
+                                    placeholder="e.g. LED Screen, Crane Shot"
+                                    value={cust.name || ''}
+                                    onChange={(e) => {
+                                      const currentSpecs = watchedItems[index]?.specs || {};
+                                      const customList = [...(currentSpecs.customDeliverables || [])];
+                                      customList[cIdx] = { ...customList[cIdx], name: e.target.value };
+                                      const updated = { ...currentSpecs, customDeliverables: customList };
+                                      setValue(`items.${index}.specs`, updated);
+                                      syncDescription(updated);
+                                    }}
+                                  />
+
+                                  <Input
+                                    label="Deliverable Notes/Specs"
+                                    placeholder="e.g. 12x8 ft, Dual Output"
+                                    value={cust.notes || ''}
+                                    onChange={(e) => {
+                                      const currentSpecs = watchedItems[index]?.specs || {};
+                                      const customList = [...(currentSpecs.customDeliverables || [])];
+                                      customList[cIdx] = { ...customList[cIdx], notes: e.target.value };
+                                      const updated = { ...currentSpecs, customDeliverables: customList };
+                                      setValue(`items.${index}.specs`, updated);
+                                      syncDescription(updated);
+                                    }}
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })}
