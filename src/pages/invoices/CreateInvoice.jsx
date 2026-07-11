@@ -298,7 +298,8 @@ const CreateInvoice = () => {
         category: item.category || '',
         description: item.description || '',
         quantity: item.quantity,
-        price: item.price
+        price: item.price,
+        specs: item.specs
       })),
       discount: data.discount,
       tokenAmount: data.tokenAmount,
@@ -1085,15 +1086,13 @@ const CreateInvoice = () => {
                                 </div>
                                 <Select
                                   label="Album Size"
-                                  value={(isSingleAlbum ? watchedItems[index]?.specs?.dimensions : watchedItems[index]?.specs?.album?.dimensions) || '12x36'}
+                                  value={watchedItems[index]?.specs?.album?.dimensions || '12x36'}
                                   onChange={(e) => {
                                     const currentSpecs = watchedItems[index]?.specs || {};
-                                    const updated = isSingleAlbum
-                                      ? { ...currentSpecs, dimensions: e.target.value }
-                                      : {
-                                          ...currentSpecs,
-                                          album: { ...currentSpecs.album, dimensions: e.target.value }
-                                        };
+                                    const updated = {
+                                      ...currentSpecs,
+                                      album: { ...currentSpecs.album, dimensions: e.target.value }
+                                    };
                                     setValue(`items.${index}.specs`, updated);
                                     syncDescription(updated);
                                   }}
@@ -1105,20 +1104,18 @@ const CreateInvoice = () => {
                                     { value: 'custom', label: 'Other / Custom Size' }
                                   ]}
                                 />
-                                {((isSingleAlbum ? watchedItems[index]?.specs?.dimensions : watchedItems[index]?.specs?.album?.dimensions) === 'custom') && (
+                                {watchedItems[index]?.specs?.album?.dimensions === 'custom' && (
                                   <div className="animate-in slide-in-from-top-1 duration-150">
                                     <Input
                                       label="Custom Album Size"
                                       placeholder="e.g. 10x15, 12x36 Custom"
-                                      value={(isSingleAlbum ? watchedItems[index]?.specs?.customDimensions : watchedItems[index]?.specs?.album?.customDimensions) || ''}
+                                      value={watchedItems[index]?.specs?.album?.customDimensions || ''}
                                       onChange={(e) => {
                                         const currentSpecs = watchedItems[index]?.specs || {};
-                                        const updated = isSingleAlbum
-                                          ? { ...currentSpecs, customDimensions: e.target.value }
-                                          : {
-                                              ...currentSpecs,
-                                              album: { ...currentSpecs.album, customDimensions: e.target.value }
-                                            };
+                                        const updated = {
+                                          ...currentSpecs,
+                                          album: { ...currentSpecs.album, customDimensions: e.target.value }
+                                        };
                                         setValue(`items.${index}.specs`, updated);
                                         syncDescription(updated);
                                       }}
@@ -1128,17 +1125,15 @@ const CreateInvoice = () => {
                                 <Input
                                   label="Number of Sheets"
                                   type="number"
-                                  value={(isSingleAlbum ? watchedItems[index]?.specs?.sheets : watchedItems[index]?.specs?.album?.sheets) ?? ''}
+                                  value={watchedItems[index]?.specs?.album?.sheets ?? ''}
                                   onChange={(e) => {
                                     const raw = e.target.value;
                                     const val = raw === '' ? '' : (parseInt(raw) ?? 0);
                                     const currentSpecs = watchedItems[index]?.specs || {};
-                                    const updated = isSingleAlbum
-                                      ? { ...currentSpecs, sheets: val }
-                                      : {
-                                          ...currentSpecs,
-                                          album: { ...currentSpecs.album, sheets: val }
-                                        };
+                                    const updated = {
+                                      ...currentSpecs,
+                                      album: { ...currentSpecs.album, sheets: val }
+                                    };
                                     setValue(`items.${index}.specs`, updated);
                                     syncDescription(updated);
                                   }}
@@ -1155,32 +1150,28 @@ const CreateInvoice = () => {
                                 <Input
                                   label="Video Duration (Hours)"
                                   type="number"
-                                  value={(isSingleVideo ? watchedItems[index]?.specs?.duration : watchedItems[index]?.specs?.video?.duration) ?? ''}
+                                  value={watchedItems[index]?.specs?.video?.duration ?? ''}
                                   onChange={(e) => {
                                     const raw = e.target.value;
                                     const val = raw === '' ? '' : (parseFloat(raw) ?? 0);
                                     const currentSpecs = watchedItems[index]?.specs || {};
-                                    const updated = isSingleVideo
-                                      ? { ...currentSpecs, duration: val }
-                                      : {
-                                          ...currentSpecs,
-                                          video: { ...currentSpecs.video, duration: val }
-                                        };
+                                    const updated = {
+                                      ...currentSpecs,
+                                      video: { ...currentSpecs.video, duration: val }
+                                    };
                                     setValue(`items.${index}.specs`, updated);
                                     syncDescription(updated);
                                   }}
                                 />
                                 <Select
                                   label="Pen Drive Source"
-                                  value={(isSingleVideo ? watchedItems[index]?.specs?.penDriveOption : watchedItems[index]?.specs?.video?.penDriveOption) || 'studio_supplied'}
+                                  value={watchedItems[index]?.specs?.video?.penDriveOption || 'studio_supplied'}
                                   onChange={(e) => {
                                     const currentSpecs = watchedItems[index]?.specs || {};
-                                    const updated = isSingleVideo
-                                      ? { ...currentSpecs, penDriveOption: e.target.value }
-                                      : {
-                                          ...currentSpecs,
-                                          video: { ...currentSpecs.video, penDriveOption: e.target.value }
-                                        };
+                                    const updated = {
+                                      ...currentSpecs,
+                                      video: { ...currentSpecs.video, penDriveOption: e.target.value }
+                                    };
                                     setValue(`items.${index}.specs`, updated);
                                     syncDescription(updated);
                                   }}
@@ -1202,17 +1193,15 @@ const CreateInvoice = () => {
                                 <Input
                                   label="Cinematic Duration (Mins)"
                                   type="number"
-                                  value={(isSingleCinematic ? watchedItems[index]?.specs?.duration : watchedItems[index]?.specs?.cinematic?.duration) ?? ''}
+                                  value={watchedItems[index]?.specs?.cinematic?.duration ?? ''}
                                   onChange={(e) => {
                                     const raw = e.target.value;
                                     const val = raw === '' ? '' : (parseInt(raw) ?? 0);
                                     const currentSpecs = watchedItems[index]?.specs || {};
-                                    const updated = isSingleCinematic
-                                      ? { ...currentSpecs, duration: val }
-                                      : {
-                                          ...currentSpecs,
-                                          cinematic: { ...currentSpecs.cinematic, duration: val }
-                                        };
+                                    const updated = {
+                                      ...currentSpecs,
+                                      cinematic: { ...currentSpecs.cinematic, duration: val }
+                                    };
                                     setValue(`items.${index}.specs`, updated);
                                     syncDescription(updated);
                                   }}
@@ -1220,17 +1209,15 @@ const CreateInvoice = () => {
                                 <Input
                                   label="IG Reels Included"
                                   type="number"
-                                  value={(isSingleCinematic ? watchedItems[index]?.specs?.reelsCount : watchedItems[index]?.specs?.cinematic?.reelsCount) ?? ''}
+                                  value={watchedItems[index]?.specs?.cinematic?.reelsCount ?? ''}
                                   onChange={(e) => {
                                     const raw = e.target.value;
                                     const val = raw === '' ? '' : (parseInt(raw) ?? 0);
                                     const currentSpecs = watchedItems[index]?.specs || {};
-                                    const updated = isSingleCinematic
-                                      ? { ...currentSpecs, reelsCount: val }
-                                      : {
-                                          ...currentSpecs,
-                                          cinematic: { ...currentSpecs.cinematic, reelsCount: val }
-                                        };
+                                    const updated = {
+                                      ...currentSpecs,
+                                      cinematic: { ...currentSpecs.cinematic, reelsCount: val }
+                                    };
                                     setValue(`items.${index}.specs`, updated);
                                     syncDescription(updated);
                                   }}
@@ -1247,17 +1234,15 @@ const CreateInvoice = () => {
                                 <Input
                                   label="Number of Drones"
                                   type="number"
-                                  value={(isSingleDrone ? watchedItems[index]?.specs?.dronesCount : watchedItems[index]?.specs?.drone?.dronesCount) ?? ''}
+                                  value={watchedItems[index]?.specs?.drone?.dronesCount ?? ''}
                                   onChange={(e) => {
                                     const raw = e.target.value;
                                     const val = raw === '' ? '' : (parseInt(raw) ?? 1);
                                     const currentSpecs = watchedItems[index]?.specs || {};
-                                    const updated = isSingleDrone
-                                      ? { ...currentSpecs, dronesCount: val }
-                                      : {
-                                          ...currentSpecs,
-                                          drone: { ...currentSpecs.drone, dronesCount: val }
-                                        };
+                                    const updated = {
+                                      ...currentSpecs,
+                                      drone: { ...currentSpecs.drone, dronesCount: val }
+                                    };
                                     setValue(`items.${index}.specs`, updated);
                                     syncDescription(updated);
                                   }}
@@ -1265,17 +1250,15 @@ const CreateInvoice = () => {
                                 <Input
                                   label="Coverage Hours"
                                   type="number"
-                                  value={(isSingleDrone ? watchedItems[index]?.specs?.hours : watchedItems[index]?.specs?.drone?.hours) ?? ''}
+                                  value={watchedItems[index]?.specs?.drone?.hours ?? ''}
                                   onChange={(e) => {
                                     const raw = e.target.value;
                                     const val = raw === '' ? '' : (parseInt(raw) ?? 4);
                                     const currentSpecs = watchedItems[index]?.specs || {};
-                                    const updated = isSingleDrone
-                                      ? { ...currentSpecs, hours: val }
-                                      : {
-                                          ...currentSpecs,
-                                          drone: { ...currentSpecs.drone, hours: val }
-                                        };
+                                    const updated = {
+                                      ...currentSpecs,
+                                      drone: { ...currentSpecs.drone, hours: val }
+                                    };
                                     setValue(`items.${index}.specs`, updated);
                                     syncDescription(updated);
                                   }}
