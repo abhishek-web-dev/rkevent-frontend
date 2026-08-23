@@ -11,3 +11,10 @@ export const addPayment = async (paymentData) => {
   const response = await api.post('/api/payments', paymentData);
   return response.data;
 };
+
+export const downloadPaymentReceipt = async (paymentId) => {
+  const response = await api.get(`/api/payments/${paymentId}/receipt`, {
+    responseType: 'blob',
+  });
+  return response.data;
+};

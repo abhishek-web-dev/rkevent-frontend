@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
 import { getInvoiceById, downloadInvoicePdf, emailInvoice, getWhatsAppLink } from '../../api/invoice.api';
-import { getPayments, addPayment } from '../../api/payment.api';
+import { getPayments, addPayment, downloadPaymentReceipt } from '../../api/payment.api';
 import { getCompanySettings } from '../../api/company.api';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
@@ -50,6 +50,7 @@ const InvoiceDetails = () => {
   // State for recording payment popup modal
   const [payModalOpen, setPayModalOpen] = useState(false);
   const [submittingPayment, setSubmittingPayment] = useState(false);
+  const [downloadingReceipt, setDownloadingReceipt] = useState(null);
 
   // 1. Retrieve Invoice Details
   const { data: invoiceRes, isLoading: invoiceLoading, error: invoiceError } = useQuery({
@@ -140,6 +141,26 @@ const InvoiceDetails = () => {
       toast.success('PDF downloaded successfully!', { id: loadingToast });
     } catch (err) {
       toast.error('Failed to download invoice PDF', { id: loadingToast });
+    }
+  };
+
+  const handleDownloadReceipt = async (paymentId, receiptNo) => {
+    setDownloadingReceipt(paymentId);
+    const loadingToast = toast.loading('Generating receipt PDF...');
+    try {
+      const pdfBlob = await downloadPaymentReceipt(paymentId);
+      const url = window.URL.createObjectURL(new Blob([pdfBlob]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Receipt_${receiptNo}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      toast.success('Receipt downloaded successfully!', { id: loadingToast });
+    } catch (err) {
+      toast.error('Failed to download receipt', { id: loadingToast });
+    } finally {
+      setDownloadingReceipt(null);
     }
   };
 
@@ -369,11 +390,12 @@ const InvoiceDetails = () => {
                       <TH>Amount</TH>
                       <TH>Payment Mode</TH>
                       <TH>Notes</TH>
+                      <TH className="text-right">Action</TH>
                     </TR>
                   </THead>
                   <TBody>
                     {payments.map((pay) => (
-                      <TR key={pay._id}>
+                      <TR key={pay._id} className="group hover:bg-white/[0.02] cursor-pointer" onClick={() => handleDownloadReceipt(pay._id, pay._id.toString().substring(pay._id.toString().length - 8).toUpperCase())}>
                         <TD className="text-slate-300 text-xs">
                           {new Date(pay.paymentDate || pay.createdAt).toLocaleDateString('en-IN', {
                             day: '2-digit',
@@ -387,6 +409,18 @@ const InvoiceDetails = () => {
                         <TD className="font-bold text-white text-xs uppercase">{pay.paymentMethod}</TD>
                         <TD className="text-slate-400 text-xs">
                           {pay.notes || '-'} {pay.transactionId ? `(Txn: ${pay.transactionId})` : ''}
+                        </TD>
+                        <TD className="text-right" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            size="sm"
+                            variant="glass"
+                            className="rounded-lg p-2"
+                            title="Download Receipt"
+                            isLoading={downloadingReceipt === pay._id}
+                            onClick={() => handleDownloadReceipt(pay._id, pay._id.toString().substring(pay._id.toString().length - 8).toUpperCase())}
+                          >
+                            <Download className="w-4 h-4 text-brand-light" />
+                          </Button>
                         </TD>
                       </TR>
                     ))}

@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getPayments } from '../../api/payment.api';
+import { getPayments, downloadPaymentReceipt } from '../../api/payment.api';
 import Card from '../../components/ui/Card';
 import { Table, THead, TBody, TR, TH, TD } from '../../components/tables/Table';
 import Pagination from '../../components/tables/Pagination';
 import Badge from '../../components/ui/Badge';
-import { AlertCircle, CreditCard, Calendar, ArrowUpRight } from 'lucide-react';
+import Button from '../../components/ui/Button';
+import { AlertCircle, CreditCard, Calendar, ArrowUpRight, Download } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 const Payments = () => {
   const [page, setPage] = useState(1);
+  const [downloading, setDownloading] = useState(null);
 
   // Fetch all payment transactions
   const { data, isLoading, error } = useQuery({
@@ -24,12 +27,32 @@ const Payments = () => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2 }).format(val || 0);
   };
 
+  const handleDownloadReceipt = async (paymentId, receiptNo) => {
+    setDownloading(paymentId);
+    const loadingToast = toast.loading('Generating receipt PDF...');
+    try {
+      const pdfBlob = await downloadPaymentReceipt(paymentId);
+      const url = window.URL.createObjectURL(new Blob([pdfBlob]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Receipt_${receiptNo}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      toast.success('Receipt downloaded successfully!', { id: loadingToast });
+    } catch (err) {
+      toast.error('Failed to download receipt', { id: loadingToast });
+    } finally {
+      setDownloading(null);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
       {/* Header */}
       <div>
-        <h2 className="text-3xl font-extrabold text-white tracking-tight">Payments Ledger</h2>
-        <p className="text-slate-400 text-sm mt-1">Review all income transactions, UPI details, and receipts.</p>
+        <h2 className="text-3xl font-extrabold text-white tracking-tight">Payment Receipts</h2>
+        <p className="text-slate-400 text-sm mt-1">Review all income transactions and download single-page receipts.</p>
       </div>
 
       <Card className="p-0">
@@ -63,12 +86,13 @@ const Payments = () => {
                   <TH>Notes</TH>
                   <TH>Date Recorded</TH>
                   <TH className="text-right">Amount Paid</TH>
+                  <TH className="text-right">Action</TH>
                 </TR>
               </THead>
               <TBody>
                 {payments.map((pay) => (
-                  <TR key={pay._id}>
-                    <TD className="font-bold text-brand-light">
+                  <TR key={pay._id} className="group hover:bg-white/[0.02] cursor-pointer" onClick={() => handleDownloadReceipt(pay._id, pay._id.toString().substring(pay._id.toString().length - 8).toUpperCase())}>
+                    <TD className="font-bold text-brand-light" onClick={(e) => e.stopPropagation()}>
                       {pay.invoiceId ? (
                         <Link
                           to={`/invoices/details/${pay.invoiceId._id || pay.invoiceId}`}
@@ -103,6 +127,18 @@ const Payments = () => {
                     </TD>
                     <TD className="text-right font-extrabold text-emerald-400 font-sans">
                       {formatCurrency(pay.amount)}
+                    </TD>
+                    <TD className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        size="sm"
+                        variant="glass"
+                        className="rounded-lg p-2"
+                        title="Download Receipt"
+                        isLoading={downloading === pay._id}
+                        onClick={() => handleDownloadReceipt(pay._id, pay._id.toString().substring(pay._id.toString().length - 8).toUpperCase())}
+                      >
+                        <Download className="w-4 h-4 text-brand-light" />
+                      </Button>
                     </TD>
                   </TR>
                 ))}

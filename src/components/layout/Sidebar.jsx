@@ -24,7 +24,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     { name: 'Bookings', path: '/bookings', icon: CalendarDays },
     { name: 'Production Board', path: '/production', icon: Activity },
     { name: 'Invoices', path: '/invoices', icon: FileText },
-    { name: 'Payments', path: '/payments', icon: CreditCard },
+    { name: 'Payment Receipts', path: '/payments', icon: CreditCard },
   ];
 
   const adminLinks = user?.role === 'admin' ? [
